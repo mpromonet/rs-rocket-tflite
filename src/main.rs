@@ -1,37 +1,37 @@
 use std::env::args;
 
 use tflite::ops::builtin::BuiltinOpResolver;
-use tflite::{FlatBufferModel, InterpreterBuilder, Result};
+use tflite::{FlatBufferModel, Interpreter, InterpreterBuilder, Result};
 
-#![feature(proc_macro_hygiene, decl_macro)]
+use rocket::{get, State};
 
-#[macro_use] extern crate rocket;
+#[macro_use]
+extern crate rocket;
 
 #[get("/")]
 fn index() -> &'static str {
     "Hello, world!"
 }
 
-fn main() {
+#[get("/invoke")]
+fn invoke(interpreter: State<&Interpreter>) -> &'static str {
+    interpreter.print_state()
+}
+
+#[launch]
+fn rocket() -> _ {
     assert_eq!(args().len(), 2, "minimal <tflite model>");
 
     let filename = args().nth(1).unwrap();
 
-    let model = FlatBufferModel::build_from_file(filename)?;
+    let model = FlatBufferModel::build_from_file(filename).unwrap();
     let resolver = BuiltinOpResolver::default();
 
-    let builder = InterpreterBuilder::new(&model, &resolver)?;
-    let mut interpreter = builder.build()?;
+    let builder = InterpreterBuilder::new(&model, &resolver).unwrap();
+    let mut interpreter = builder.build().unwrap();
+    interpreter.allocate_tensors().unwrap();
 
-    interpreter.allocate_tensors()?;
 
-    println!("=== Pre-invoke Interpreter State ===");
-    interpreter.print_state();
-
-    interpreter.invoke()?;
-
-    println!("\n\n=== Post-invoke Interpreter State ===");
-    interpreter.print_state();
-       
-    rocket::ignite().mount("/", routes![index]).launch();
+    rocket::build().manage(&interpreter)
+                    .mount("/", routes![index,invoke])
 }
