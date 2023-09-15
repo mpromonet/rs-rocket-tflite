@@ -4,14 +4,10 @@ use tflite::ops::builtin::BuiltinOpResolver;
 use tflite::{FlatBufferModel, InterpreterBuilder};
 
 use actix_web::{get, web, App, HttpServer, Responder};
+use actix_files as fs;
 
 struct AppState {
         model: String,
-}
-
-#[get("/")]
-async fn index() -> impl Responder {
-    format!("Hello")
 }
 
 #[get("/invoke")]
@@ -39,8 +35,9 @@ async fn main() -> std::io::Result<()> {
             .app_data(web::Data::new(AppState {
                 model: filename.to_owned(),
             }))
-            .service(index)
             .service(invoke)
+            .service(web::redirect("/", "/index.html"))
+            .service(fs::Files::new("/", "./static").show_files_listing())
     })
     .bind(("0.0.0.0", 8080))?
     .run()
