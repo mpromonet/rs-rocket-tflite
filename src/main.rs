@@ -1,37 +1,48 @@
 use std::env::args;
 
 use tflite::ops::builtin::BuiltinOpResolver;
-use tflite::{FlatBufferModel, Interpreter, InterpreterBuilder, Result};
+use tflite::{FlatBufferModel, InterpreterBuilder};
 
-use rocket::{get, State};
+use actix_web::{get, web, App, HttpServer, Responder};
 
-#[macro_use]
-extern crate rocket;
+struct AppState {
+        model: String,
+}
 
 #[get("/")]
-fn index() -> &'static str {
-    "Hello, world!"
+async fn index() -> impl Responder {
+    format!("Hello")
 }
 
 #[get("/invoke")]
-fn invoke(interpreter: State<&Interpreter>) -> &'static str {
-    interpreter.print_state()
-}
-
-#[launch]
-fn rocket() -> _ {
-    assert_eq!(args().len(), 2, "minimal <tflite model>");
-
-    let filename = args().nth(1).unwrap();
-
+async fn invoke(data: web::Data<AppState>) -> impl Responder {
+    let filename = data.model.as_str();
     let model = FlatBufferModel::build_from_file(filename).unwrap();
     let resolver = BuiltinOpResolver::default();
 
     let builder = InterpreterBuilder::new(&model, &resolver).unwrap();
     let mut interpreter = builder.build().unwrap();
     interpreter.allocate_tensors().unwrap();
+    interpreter.print_state();
+    format!("{}",interpreter.inputs().len())
+}
+
+#[actix_web::main]
+async fn main() -> std::io::Result<()> {
+    assert_eq!(args().len(), 2, "minimal <tflite model>");
+
+    let filename = args().nth(1).unwrap();
 
 
-    rocket::build().manage(&interpreter)
-                    .mount("/", routes![index,invoke])
+    HttpServer::new(move || {
+        App::new()
+            .app_data(web::Data::new(AppState {
+                model: filename.to_owned(),
+            }))
+            .service(index)
+            .service(invoke)
+    })
+    .bind(("0.0.0.0", 8080))?
+    .run()
+    .await
 }
