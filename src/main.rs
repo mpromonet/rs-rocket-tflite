@@ -3,14 +3,20 @@ use std::env::args;
 use tflite::ops::builtin::BuiltinOpResolver;
 use tflite::{FlatBufferModel, InterpreterBuilder};
 
-use actix_web::{get, web, App, HttpServer, Responder};
+use actix_web::{get, post, web, App, HttpServer, Responder};
 use actix_files as fs;
 
 struct AppState {
         model: String,
 }
 
-#[get("/invoke")]
+#[get("/models")]
+async fn models(data: web::Data<AppState>) -> impl Responder {
+    let filename = data.model.as_str();
+    format!("[\"{}\"]",filename)
+}
+
+#[post("/invoke")]
 async fn invoke(data: web::Data<AppState>) -> impl Responder {
     let filename = data.model.as_str();
     let model = FlatBufferModel::build_from_file(filename).unwrap();
@@ -29,12 +35,12 @@ async fn main() -> std::io::Result<()> {
 
     let filename = args().nth(1).unwrap();
 
-
     HttpServer::new(move || {
         App::new()
             .app_data(web::Data::new(AppState {
                 model: filename.to_owned(),
             }))
+            .service(models)
             .service(invoke)
             .service(web::redirect("/", "/index.html"))
             .service(fs::Files::new("/", "./static").show_files_listing())
