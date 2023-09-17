@@ -5,10 +5,11 @@
 ** -------------------------------------------------------------------------*/
 
 use std::env::args;
+use std::io::Cursor;
 
 use tflite::ops::builtin::BuiltinOpResolver;
 use tflite::{FlatBufferModel, InterpreterBuilder};
-
+use image::io::Reader;
 use actix_web::{get, post, web, App, HttpServer, Responder};
 use actix_files as fs;
 
@@ -22,8 +23,13 @@ async fn models(data: web::Data<AppState>) -> impl Responder {
     format!("[\"{}\"]",filename)
 }
 
-#[post("/invoke")]
-async fn invoke(data: web::Data<AppState>) -> impl Responder {
+#[post("/invoke/{model}")]
+async fn invoke(data: web::Data<AppState>, body: web::Bytes) -> impl Responder {
+    let reader = Reader::new(Cursor::new(body)).with_guessed_format().unwrap();
+
+    let img = reader.decode().expect("Failed to read image");
+    println!("{}x{}", img.width(), img.height());
+
     let filename = data.model.as_str();
     let model = FlatBufferModel::build_from_file(filename).unwrap();
     let resolver = BuiltinOpResolver::default();
