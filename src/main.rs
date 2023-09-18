@@ -28,7 +28,7 @@ async fn invoke(data: web::Data<AppState>, body: web::Bytes) -> impl Responder {
     let reader = Reader::new(Cursor::new(body)).with_guessed_format().unwrap();
 
     let img = reader.decode().expect("Failed to read image");
-    println!("{}x{}", img.width(), img.height());
+    println!("image size: {}x{}", img.width(), img.height());
 
     let filename = data.model.as_str();
     let model = FlatBufferModel::build_from_file(filename).unwrap();
@@ -41,7 +41,11 @@ async fn invoke(data: web::Data<AppState>, body: web::Bytes) -> impl Responder {
     let inputs = interpreter.inputs().to_vec();
     let input_index = inputs[0];
 
-    img.into_bytes().copy_from_slice(interpreter.tensor_data_mut(input_index).unwrap());
+    let info = interpreter.tensor_info(input_index).unwrap();
+    println!("tensor size: {}x{}", info.dims[1], info.dims[2]);
+    let resized_img = img.resize(info.dims[1].try_into().unwrap(), info.dims[2].try_into().unwrap(), image::imageops::FilterType::Nearest);
+    resized_img.into_bytes().copy_from_slice(interpreter.tensor_data_mut(input_index).unwrap());
+
     interpreter.invoke().unwrap();
 
     let outputs = interpreter.outputs().to_vec();
