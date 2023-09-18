@@ -37,8 +37,18 @@ async fn invoke(data: web::Data<AppState>, body: web::Bytes) -> impl Responder {
     let builder = InterpreterBuilder::new(&model, &resolver).unwrap();
     let mut interpreter = builder.build().unwrap();
     interpreter.allocate_tensors().unwrap();
-    interpreter.print_state();
-    format!("{}",interpreter.inputs().len())
+
+    let inputs = interpreter.inputs().to_vec();
+    let input_index = inputs[0];
+
+    img.into_bytes().copy_from_slice(interpreter.tensor_data_mut(input_index).unwrap());
+    interpreter.invoke().unwrap();
+
+    let outputs = interpreter.outputs().to_vec();
+    let output_index = outputs[0];
+    let output: &[u8] = interpreter.tensor_data(output_index).unwrap();
+
+    format!("{}",output.len())
 }
 
 #[actix_web::main]
