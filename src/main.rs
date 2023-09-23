@@ -27,7 +27,7 @@ async fn models(data: web::Data<AppState>) -> impl Responder {
 async fn invoke(data: web::Data<AppState>, body: web::Bytes) -> impl Responder {
     let reader = Reader::new(Cursor::new(body)).with_guessed_format().unwrap();
 
-    let img = reader.decode().expect("Failed to read image");
+    let mut img = reader.decode().expect("Failed to read image");
     println!("image size: {}x{}", img.width(), img.height());
 
     let filename = data.model.as_str();
@@ -42,17 +42,21 @@ async fn invoke(data: web::Data<AppState>, body: web::Bytes) -> impl Responder {
     let input_index = inputs[0];
 
     let info = interpreter.tensor_info(input_index).unwrap();
-    println!("tensor size: {}x{}", info.dims[1], info.dims[2]);
-    let resized_img = img.resize(info.dims[1].try_into().unwrap(), info.dims[2].try_into().unwrap(), image::imageops::FilterType::Nearest);
-    resized_img.into_bytes().copy_from_slice(interpreter.tensor_data_mut(input_index).unwrap());
+    println!("tensor size: {:?}", info.dims);
+    if info.dims[3] == 1 {
+        img = img.grayscale();
+    }
+    let resized_img = img.resize_exact(info.dims[1].try_into().unwrap(), info.dims[2].try_into().unwrap(), image::imageops::FilterType::Nearest);
+    interpreter.tensor_data_mut(input_index).unwrap().copy_from_slice(&resized_img.into_bytes());
 
     interpreter.invoke().unwrap();
 
     let outputs = interpreter.outputs().to_vec();
     let output_index = outputs[0];
-    let output: &[u8] = interpreter.tensor_data(output_index).unwrap();
+    let _output: &[u8] = interpreter.tensor_data(output_index).unwrap();
 
-    format!("{}",output.len())
+    let out_info = interpreter.tensor_info(output_index).unwrap();
+    format!("{:?}",out_info)
 }
 
 #[actix_web::main]
