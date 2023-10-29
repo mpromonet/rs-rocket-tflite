@@ -96,6 +96,7 @@ async fn main() -> std::io::Result<()> {
             .app_data(web::Data::new(AppState {
                 model: filename.to_owned(),
             }))
+            .data(web::PayloadConfig::new(1 << 24))
             .service(models)
             .service(invoke)
             .service(web::redirect("/", "/index.html"))
