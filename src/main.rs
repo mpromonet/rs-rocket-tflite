@@ -10,11 +10,34 @@ use std::io::Cursor;
 use tflite::ops::builtin::BuiltinOpResolver;
 use tflite::{FlatBufferModel, InterpreterBuilder};
 use image::io::Reader;
+
+use serde::Serialize;
+
 use actix_web::{get, post, web, App, HttpServer, Responder};
 use actix_files as fs;
 
 struct AppState {
         model: String,
+}
+
+#[derive(Serialize)]
+struct Point {
+    X: i32,
+    Y: i32,
+}
+
+#[derive(Serialize)]
+struct Rectangle {
+	Min       : Point,
+	Max       : Point,
+}
+
+#[derive(Serialize)]
+struct Item {
+	Box       : Rectangle,
+	Score     : f32,
+	ClassID   : i32,
+	ClassName : String,
 }
 
 #[get("/models")]
@@ -56,7 +79,10 @@ async fn invoke(data: web::Data<AppState>, body: web::Bytes) -> impl Responder {
     let _output: &[u8] = interpreter.tensor_data(output_index).unwrap();
 
     let out_info = interpreter.tensor_info(output_index).unwrap();
-    format!("{:?}",out_info)
+    format!("{:?}",out_info);
+
+    let items: Vec<Item> = Vec::new();
+    web::Json(items)
 }
 
 #[actix_web::main]

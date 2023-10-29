@@ -1388,6 +1388,7 @@ dependencies = [
  "actix-files",
  "actix-web",
  "image",
+ "serde",
  "tflite",
 ]
 
