@@ -76,7 +76,7 @@ async fn invoke(data: web::Data<AppState>, body: web::Bytes) -> impl Responder {
 
     let outputs = interpreter.outputs().to_vec();
     let output_index = outputs[0];
-    let _output: &[u8] = interpreter.tensor_data(output_index).unwrap();
+    let _output: &[i32] = interpreter.tensor_data(output_index).unwrap();
 
     let out_info = interpreter.tensor_info(output_index).unwrap();
     format!("{:?}",out_info);
