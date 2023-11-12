@@ -65,7 +65,7 @@ async fn invoke(data: web::Data<AppState>, body: web::Bytes) -> impl Responder {
     let input_index = inputs[0];
 
     let info = interpreter.tensor_info(input_index).unwrap();
-    println!("tensor size: {:?}", info.dims);
+    println!("tensor in: {:?}", info);
     if info.dims[3] == 1 {
         img = img.grayscale();
     }
@@ -76,12 +76,27 @@ async fn invoke(data: web::Data<AppState>, body: web::Bytes) -> impl Responder {
 
     let outputs = interpreter.outputs().to_vec();
     let output_index = outputs[0];
-    let _output: &[i32] = interpreter.tensor_data(output_index).unwrap();
+    let _output: &[u8] = interpreter.tensor_data(output_index).unwrap();
 
     let out_info = interpreter.tensor_info(output_index).unwrap();
-    format!("{:?}",out_info);
+    println!("tensor out: {:?}",out_info);
 
-    let items: Vec<Item> = Vec::new();
+    let mut items: Vec<Item> = Vec::new();
+    items.push(Item {
+        Box: Rectangle {
+            Min: Point {
+                X: 0,
+                Y: 0
+            },
+            Max: Point {
+                X: 100,
+                Y: 100
+            }
+        },
+        Score: 0.5,
+        ClassID: 0,
+        ClassName: "default".to_string()
+    });
     web::Json(items)
 }
 
