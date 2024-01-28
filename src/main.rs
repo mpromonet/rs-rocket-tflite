@@ -76,10 +76,18 @@ async fn invoke(data: web::Data<AppState>, body: web::Bytes) -> impl Responder {
 
     let outputs = interpreter.outputs().to_vec();
     let output_index = outputs[0];
-    let _output: &[u8] = interpreter.tensor_data(output_index).unwrap();
-
+ 
     let out_info = interpreter.tensor_info(output_index).unwrap();
-    println!("tensor out: {:?}",out_info);
+    println!("tensor out: {:?}", out_info);
+    let output_data: &[u8] = interpreter.tensor_data(output_index).unwrap();
+    let output_tensor = tflite::tensor::Tensor::new(output_data, &out_info);
+
+    // Access the elements of the output tensor
+    for i in 0..output_tensor.len() {
+        let element = output_tensor.get::<f32>(i);
+        // Process the element as needed
+        println!("Output element {}: {}", i, element);
+    }
 
     let mut items: Vec<Item> = Vec::new();
     items.push(Item {
@@ -102,9 +110,7 @@ async fn invoke(data: web::Data<AppState>, body: web::Bytes) -> impl Responder {
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    assert_eq!(args().len(), 2, "minimal <tflite model>");
-
-    let filename = args().nth(1).unwrap();
+    let filename = args().nth(1).unwrap_or("lite-model_yolo-v5-tflite_tflite_model_1.tflite");
 
     HttpServer::new(move || {
         App::new()
