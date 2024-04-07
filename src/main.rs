@@ -80,37 +80,41 @@ async fn invoke(data: web::Data<AppState>, body: web::Bytes) -> impl Responder {
     let out_info = interpreter.tensor_info(output_index).unwrap();
     println!("tensor out: {:?}", out_info);
     let output_data: &[u8] = interpreter.tensor_data(output_index).unwrap();
-    let output_tensor = tflite::tensor::Tensor::new(output_data, &out_info);
-
-    // Access the elements of the output tensor
-    for i in 0..output_tensor.len() {
-        let element = output_tensor.get::<f32>(i);
-        // Process the element as needed
-        println!("Output element {}: {}", i, element);
-    }
+    
+    let num_attributes = 5 + 80;
 
     let mut items: Vec<Item> = Vec::new();
-    items.push(Item {
-        Box: Rectangle {
-            Min: Point {
-                X: 0,
-                Y: 0
+    for i in (0..output_data.len()).step_by(num_attributes) {
+        let x = output_data[i] as i32;
+        let y = output_data[i + 1] as i32;
+        let width = output_data[i + 2] as i32;
+        let height = output_data[i + 3] as i32;
+        let objectness_score = output_data[i + 4];
+        let class_probabilities = &output_data[i + 5..i + num_attributes];
+
+        items.push(Item {
+            Box: Rectangle {
+                Min: Point {
+                    X: x,
+                    Y: y
+                },
+                Max: Point {
+                    X: width,
+                    Y: height
+                }
             },
-            Max: Point {
-                X: 100,
-                Y: 100
-            }
-        },
-        Score: 0.5,
-        ClassID: 0,
-        ClassName: "default".to_string()
-    });
+            Score: 0.5,
+            ClassID: 0,
+            ClassName: "default".to_string()
+        }); 
+    }
+
     web::Json(items)
 }
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    let filename = args().nth(1).unwrap_or("lite-model_yolo-v5-tflite_tflite_model_1.tflite");
+    let filename = args().nth(1).unwrap_or("quant_coco-tiny-v3-relu.tflite".to_string());
 
     HttpServer::new(move || {
         App::new()
